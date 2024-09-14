@@ -74,6 +74,8 @@ DebugAnnotationParser::ParseDebugAnnotationValue(
     protos::pbzero::DebugAnnotation::Decoder& annotation,
     ProtoToArgsParser::Delegate& delegate,
     const ProtoToArgsParser::Key& context_name) {
+  /* flat nested values into `debug` scope. */
+  static ProtoToArgsParser::Key flat_debug_key{"debug", "debug"};
   if (annotation.has_bool_value()) {
     delegate.AddBoolean(context_name, annotation.bool_value());
   } else if (annotation.has_uint_value()) {
@@ -83,8 +85,18 @@ DebugAnnotationParser::ParseDebugAnnotationValue(
   } else if (annotation.has_double_value()) {
     delegate.AddDouble(context_name, annotation.double_value());
   } else if (annotation.has_string_value()) {
-    delegate.AddString(context_name, annotation.string_value());
+    /* string annotation with name `__flat_json` treated
+       as json value and got flattened. use a specific name to
+       ensure that trace file is compatible to upstream version. */
+    if (IsJsonSupported() && context_name.key == "debug.__flat_json") {
+      bool added_entry =
+          delegate.AddJson(flat_debug_key, annotation.string_value());
+      return {base::OkStatus(), added_entry};
+    } else {
+      delegate.AddString(context_name, annotation.string_value());
+    }
   } else if (annotation.has_string_value_iid()) {
+    /* so that json string can be interned */
     auto* decoder = delegate.GetInternedMessage(
         protos::pbzero::InternedData::kDebugAnnotationStringValues,
         annotation.string_value_iid());
@@ -92,7 +104,15 @@ DebugAnnotationParser::ParseDebugAnnotationValue(
       return {base::ErrStatus("Debug annotation with invalid string_value_iid"),
               false};
     }
-    delegate.AddString(context_name, decoder->str().ToStdString());
+    if (IsJsonSupported() && context_name.key == "debug.__flat_json") {
+      auto [data, size] = decoder->str();
+      bool added_entry = delegate.AddJson(
+          flat_debug_key,
+          protozero::ConstChars{reinterpret_cast<const char*>(data), size});
+      return {base::OkStatus(), added_entry};
+    } else {
+      delegate.AddString(context_name, decoder->str().ToStdString());
+    }
   } else if (annotation.has_pointer_value()) {
     delegate.AddPointer(context_name, reinterpret_cast<const void*>(
                                           annotation.pointer_value()));

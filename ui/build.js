@@ -491,6 +491,7 @@ function buildWasm(skipWasmBuild) {
   if (!skipWasmBuild) {
     if (!cfg.noOverrideGnArgs) {
       let gnVars = `is_debug=${cfg.debug}`;
+      gnVars += ` enable_perfetto_trace_processor_json=true`
       if (childProcess.spawnSync('which', ['ccache']).status === 0) {
         gnVars += ` cc_wrapper="ccache"`;
       }
