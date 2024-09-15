@@ -36,6 +36,14 @@ std::string SanitizeDebugAnnotationName(const std::string& raw_name) {
   return result;
 }
 
+bool EndsWith(std::string_view str, std::string_view suffix) {
+  if (str.length() < suffix.length()) {
+    return false;
+  }
+  return str.compare(str.length() - suffix.length(), suffix.length(), suffix) ==
+         0;
+}
+
 bool IsJsonSupported() {
 #if PERFETTO_BUILDFLAG(PERFETTO_TP_JSON)
   return true;
@@ -74,8 +82,7 @@ DebugAnnotationParser::ParseDebugAnnotationValue(
     protos::pbzero::DebugAnnotation::Decoder& annotation,
     ProtoToArgsParser::Delegate& delegate,
     const ProtoToArgsParser::Key& context_name) {
-  /* flat nested values into `debug` scope. */
-  static ProtoToArgsParser::Key flat_debug_key{"debug", "debug"};
+  static std::string_view flat_json_suffix{".__flat_json"};
   if (annotation.has_bool_value()) {
     delegate.AddBoolean(context_name, annotation.bool_value());
   } else if (annotation.has_uint_value()) {
@@ -88,9 +95,11 @@ DebugAnnotationParser::ParseDebugAnnotationValue(
     /* string annotation with name `__flat_json` treated
        as json value and got flattened. use a specific name to
        ensure that trace file is compatible to upstream version. */
-    if (IsJsonSupported() && context_name.key == "debug.__flat_json") {
-      bool added_entry =
-          delegate.AddJson(flat_debug_key, annotation.string_value());
+    std::string_view key{context_name.key};
+    if (IsJsonSupported() && EndsWith(key, flat_json_suffix)) {
+      key.remove_suffix(flat_json_suffix.length());
+      bool added_entry = delegate.AddJson(
+          ProtoToArgsParser::Key(std::string(key)), annotation.string_value());
       return {base::OkStatus(), added_entry};
     } else {
       delegate.AddString(context_name, annotation.string_value());
@@ -104,10 +113,12 @@ DebugAnnotationParser::ParseDebugAnnotationValue(
       return {base::ErrStatus("Debug annotation with invalid string_value_iid"),
               false};
     }
-    if (IsJsonSupported() && context_name.key == "debug.__flat_json") {
+    std::string_view key{context_name.key};
+    if (IsJsonSupported() && EndsWith(key, flat_json_suffix)) {
+      key.remove_suffix(flat_json_suffix.length());
       auto [data, size] = decoder->str();
       bool added_entry = delegate.AddJson(
-          flat_debug_key,
+          ProtoToArgsParser::Key(std::string(key)),
           protozero::ConstChars{reinterpret_cast<const char*>(data), size});
       return {base::OkStatus(), added_entry};
     } else {
