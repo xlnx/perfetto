@@ -14,7 +14,6 @@
 
 import m from 'mithril';
 
-import {channelChanged, getNextChannel, setChannel} from '../common/channels';
 import {Anchor} from '../widgets/anchor';
 import {HotkeyGlyphs} from '../widgets/hotkey_glyphs';
 
@@ -71,42 +70,16 @@ export class Hints implements m.ClassComponent {
 export const HomePage = createPage({
   view() {
     return m(
-      '.page.home-page',
-      m(
-        '.home-page-center',
+        '.page.home-page',
         m(
-          '.home-page-title',
-          m(`img.logo[src=${globals.root}assets/logo-3d.png]`),
-          'Perfetto',
-        ),
-        m(Hints),
-        m(
-          '.channel-select',
-          m('', 'Feeling adventurous? Try our bleeding edge Canary version'),
-          m('fieldset', mkChan('stable'), mkChan('canary'), m('.highlight')),
-          m(
-            `.home-page-reload${channelChanged() ? '.show' : ''}`,
-            'You need to reload the page for the changes to have effect',
-          ),
-        ),
-      ),
-      m(
-        'a.privacy',
-        {href: 'https://policies.google.com/privacy', target: '_blank'},
-        'Privacy policy',
-      ),
+            '.home-page-center',
+            m(
+                '.home-page-title',
+                m(`img.logo[src=${globals.root}assets/logo-3d.png]`),
+                'Perfetto',
+                ),
+            m(Hints),
+            ),
     );
   },
 });
-
-function mkChan(chan: string) {
-  const checked = getNextChannel() === chan ? '[checked=true]' : '';
-  return [
-    m(`input[type=radio][name=chan][id=chan_${chan}]${checked}`, {
-      onchange: () => {
-        setChannel(chan);
-      },
-    }),
-    m(`label[for=chan_${chan}]`, chan),
-  ];
-}

@@ -12,11 +12,9 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-import {RECORDING_V2_FLAG} from '../core/feature_flags';
 import {globals} from '../frontend/globals';
 
 import {Child, Controller, ControllerInitializerAny} from './controller';
-import {RecordController} from './record_controller';
 import {TraceController} from './trace_controller';
 
 // The root controller for the entire app. It handles the lifetime of all
@@ -26,11 +24,9 @@ export class AppController extends Controller<'main'> {
   // extensionPort is needed for the RecordController to communicate with the
   // extension through the frontend. This is because the controller is running
   // on a worker, and isn't able to directly send messages to the extension.
-  private extensionPort: MessagePort;
 
-  constructor(extensionPort: MessagePort) {
+  constructor(_: MessagePort) {
     super('main');
-    this.extensionPort = extensionPort;
   }
 
   // This is the root method that is called every time the controller tree is
@@ -40,11 +36,6 @@ export class AppController extends Controller<'main'> {
   //   re-triggering the controllers.
   run() {
     const childControllers: ControllerInitializerAny[] = [];
-    if (!RECORDING_V2_FLAG.get()) {
-      childControllers.push(
-        Child('record', RecordController, {extensionPort: this.extensionPort}),
-      );
-    }
     if (globals.state.engine !== undefined) {
       const engineCfg = globals.state.engine;
       childControllers.push(Child(engineCfg.id, TraceController, engineCfg.id));

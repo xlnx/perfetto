@@ -136,43 +136,6 @@ describe('Router.parseFragment', () => {
     expect(subpage).toBe('');
   });
 
-  test('simple route has page defined', () => {
-    const {page, subpage} = Router.parseFragment('#!/record');
-    expect(page).toBe('/record');
-    expect(subpage).toBe('');
-  });
-
-  test('simple route has both components defined', () => {
-    const {page, subpage} = Router.parseFragment('#!/record/memory');
-    expect(page).toBe('/record');
-    expect(subpage).toBe('/memory');
-  });
-
-  test('route broken at first slash', () => {
-    const {page, subpage} = Router.parseFragment('#!/record/memory/stuff');
-    expect(page).toBe('/record');
-    expect(subpage).toBe('/memory/stuff');
-  });
-
-  test('parameters separated from route', () => {
-    const {page, subpage, args} = Router.parseFragment(
-      '#!/record/memory?url=http://localhost:1234/aaaa',
-    );
-    expect(page).toBe('/record');
-    expect(subpage).toBe('/memory');
-    expect(args.url).toEqual('http://localhost:1234/aaaa');
-  });
-
-  test('openFromAndroidBugTool can be false', () => {
-    const {args} = Router.parseFragment('#!/?openFromAndroidBugTool=false');
-    expect(args.openFromAndroidBugTool).toEqual(false);
-  });
-
-  test('openFromAndroidBugTool can be true', () => {
-    const {args} = Router.parseFragment('#!/?openFromAndroidBugTool=true');
-    expect(args.openFromAndroidBugTool).toEqual(true);
-  });
-
   test('bad modes are coerced to default', () => {
     const {args} = Router.parseFragment('#!/?mode=1234');
     expect(args.mode).toEqual(undefined);

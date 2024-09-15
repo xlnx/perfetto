@@ -13,34 +13,19 @@
 // limitations under the License.
 
 import m from 'mithril';
+import {z} from 'zod';
 
 import {assertExists} from '../base/logging';
+import {Optional} from '../base/utils';
 import {Actions} from '../common/actions';
 import {ConversionJobStatus} from '../common/conversion_jobs';
-import {
-  JsonSerialize,
-  parseAppState,
-  serializeAppState,
-} from '../common/state_serialization';
-import {
-  BUCKET_NAME,
-  MIME_BINARY,
-  MIME_JSON,
-  GcsUploader,
-} from '../common/gcs_uploader';
-import {globals} from './globals';
-import {
-  publishConversionJobStatusUpdate,
-  publishPermalinkHash,
-} from './publish';
-import {Router} from './router';
-import {Optional} from '../base/utils';
-import {
-  SERIALIZED_STATE_VERSION,
-  SerializedAppState,
-} from '../common/state_serialization_schema';
-import {z} from 'zod';
+import {BUCKET_NAME, GcsUploader, MIME_BINARY, MIME_JSON,} from '../common/gcs_uploader';
+import {JsonSerialize, parseAppState, serializeAppState,} from '../common/state_serialization';
+import {SERIALIZED_STATE_VERSION, SerializedAppState,} from '../common/state_serialization_schema';
 import {showModal} from '../widgets/modal';
+
+import {globals} from './globals';
+import {publishConversionJobStatusUpdate, publishPermalinkHash,} from './publish';
 
 // Permalink serialization has two layers:
 // 1. Serialization of the app state (state_serialization.ts):
@@ -63,17 +48,12 @@ const PERMALINK_SCHEMA = z.object({
   // 1. parseAppState() does further semantic checks (e.g. version checking).
   // 2. We want to still load the traceUrl even if the app state is invalid.
   appState: z.any().optional(),
-
-  // This is for the very unusual case of clicking on "Share settings" in the
-  // recording page. In this case there is no trace or app state. We just
-  // create a permalink with the recording state.
-  recordingOpts: z.any().optional(),
 });
 
 type PermalinkState = z.infer<typeof PERMALINK_SCHEMA>;
 
 export interface PermalinkOptions {
-  mode: 'APP_STATE' | 'RECORDING_OPTS';
+  mode: 'APP_STATE';
 }
 
 export async function createPermalink(opts: PermalinkOptions): Promise<void> {
@@ -100,9 +80,7 @@ async function createPermalinkInternal(
 ): Promise<string> {
   const permalinkData: PermalinkState = {};
 
-  if (opts.mode === 'RECORDING_OPTS') {
-    permalinkData.recordingOpts = globals.state.recordConfig;
-  } else if (opts.mode === 'APP_STATE') {
+  if (opts.mode === 'APP_STATE') {
     // Check if we need to upload the trace file, before serializing the app
     // state.
     let alreadyUploadedUrl = '';
@@ -184,15 +162,6 @@ export async function loadPermalink(gcsFileName: string): Promise<void> {
     }
   }
 
-  if (permalink.recordingOpts !== undefined) {
-    // This permalink state only contains a RecordConfig. Show the
-    // recording page with the config, but keep other state as-is.
-    globals.dispatch(
-      Actions.setRecordConfig({config: permalink.recordingOpts}),
-    );
-    Router.navigate('#!/record');
-    return;
-  }
   if (permalink.appState !== undefined) {
     // This is the most common case where the permalink contains the app state
     // (and optionally a traceUrl, below). globals.restoreAppStateAfterTraceLoad

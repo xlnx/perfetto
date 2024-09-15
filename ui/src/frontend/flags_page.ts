@@ -14,15 +14,11 @@
 
 import m from 'mithril';
 
-import {channelChanged, getNextChannel, setChannel} from '../common/channels';
 import {featureFlags, Flag, OverrideState} from '../core/feature_flags';
 import {raf} from '../core/raf_scheduler';
 
 import {createPage} from './pages';
 import {Router} from './router';
-
-const RELEASE_PROCESS_URL =
-  'https://perfetto.dev/docs/visualization/perfetto-ui-release-process';
 
 interface FlagOption {
   id: string;
@@ -104,50 +100,29 @@ class FlagWidget implements m.ClassComponent<FlagWidgetAttrs> {
 
 export const FlagsPage = createPage({
   view() {
-    const needsReload = channelChanged();
+    const needsReload = false;
     return m(
-      '.flags-page',
-      m(
-        '.flags-content',
-        m('h1', 'Feature flags'),
-        needsReload && [
-          m('h2', 'Please reload for your changes to take effect'),
-        ],
-        m(SelectWidget, {
-          label: 'Release channel',
-          id: 'releaseChannel',
-          description: [
-            'Which release channel of the UI to use. See ',
-            m(
-              'a',
-              {
-                href: RELEASE_PROCESS_URL,
-              },
-              'Release Process',
-            ),
-            ' for more information.',
-          ],
-          options: [
-            {id: 'stable', name: 'Stable (default)'},
-            {id: 'canary', name: 'Canary'},
-            {id: 'autopush', name: 'Autopush'},
-          ],
-          selected: getNextChannel(),
-          onSelect: (id) => setChannel(id),
-        }),
+        '.flags-page',
         m(
-          'button',
-          {
-            onclick: () => {
-              featureFlags.resetAll();
-              raf.scheduleFullRedraw();
-            },
-          },
-          'Reset all below',
-        ),
+            '.flags-content',
+            m('h1', 'Feature flags'),
+            needsReload &&
+                [
+                  m('h2', 'Please reload for your changes to take effect'),
+                ],
+            m(
+                'button',
+                {
+                  onclick: () => {
+                    featureFlags.resetAll();
+                    raf.scheduleFullRedraw();
+                  },
+                },
+                'Reset all below',
+                ),
 
-        featureFlags.allFlags().map((flag) => m(FlagWidget, {flag})),
-      ),
+            featureFlags.allFlags().map((flag) => m(FlagWidget, {flag})),
+            ),
     );
   },
 

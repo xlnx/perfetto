@@ -12,22 +12,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
+import {DisposableStack} from '../../base/disposable_stack';
 import {Time, time} from '../../base/time';
 import {exists} from '../../base/utils';
 import {Actions} from '../../common/actions';
 import {globals} from '../../frontend/globals';
-import {openInOldUIWithSizeCheck} from '../../frontend/legacy_trace_viewer';
-import {
-  Plugin,
-  PluginContext,
-  PluginContextTrace,
-  PluginDescriptor,
-} from '../../public';
-import {
-  isLegacyTrace,
-  openFileWithLegacyTraceViewer,
-} from '../../frontend/legacy_trace_viewer';
-import {DisposableStack} from '../../base/disposable_stack';
+import {Plugin, PluginContext, PluginContextTrace, PluginDescriptor,} from '../../public';
 
 const SQL_STATS = `
 with first as (select started as ts from sqlstats limit 1)
@@ -135,7 +125,6 @@ class CoreCommandsPlugin implements Plugin {
       id: OPEN_TRACE_COMMAND_ID,
       name: 'Open trace file',
       callback: () => {
-        delete input.dataset['useCatapultLegacyUi'];
         input.click();
       },
       defaultHotkey: '!Mod+O',
@@ -144,22 +133,6 @@ class CoreCommandsPlugin implements Plugin {
       commandId: OPEN_TRACE_COMMAND_ID,
       group: 'navigation',
       icon: 'folder_open',
-    });
-
-    const OPEN_LEGACY_TRACE_COMMAND_ID =
-      'perfetto.CoreCommands#openTraceInLegacyUi';
-    ctx.registerCommand({
-      id: OPEN_LEGACY_TRACE_COMMAND_ID,
-      name: 'Open with legacy UI',
-      callback: () => {
-        input.dataset['useCatapultLegacyUi'] = '1';
-        input.click();
-      },
-    });
-    ctx.addSidebarMenuItem({
-      commandId: OPEN_LEGACY_TRACE_COMMAND_ID,
-      group: 'navigation',
-      icon: 'filter_none',
     });
   }
 
@@ -305,23 +278,8 @@ function onInputElementFileSelectionChanged(e: Event) {
   // Reset the value so onchange will be fired with the same file.
   e.target.value = '';
 
-  if (e.target.dataset['useCatapultLegacyUi'] === '1') {
-    openWithLegacyUi(file);
-    return;
-  }
-
   globals.logging.logEvent('Trace Actions', 'Open trace from file');
   globals.dispatch(Actions.openTraceFromFile({file}));
-}
-
-async function openWithLegacyUi(file: File) {
-  // Switch back to the old catapult UI.
-  globals.logging.logEvent('Trace Actions', 'Open trace in Legacy UI');
-  if (await isLegacyTrace(file)) {
-    openFileWithLegacyTraceViewer(file);
-    return;
-  }
-  openInOldUIWithSizeCheck(file);
 }
 
 export const plugin: PluginDescriptor = {

@@ -15,12 +15,12 @@
 import m from 'mithril';
 
 import {ErrorDetails} from '../base/logging';
-import {EXTENSION_URL} from '../common/recordingV2/recording_utils';
 import {GcsUploader} from '../common/gcs_uploader';
 import {RECORDING_V2_FLAG} from '../core/feature_flags';
 import {raf} from '../core/raf_scheduler';
 import {VERSION} from '../gen/perfetto_version';
 import {getCurrentModalKey, showModal} from '../widgets/modal';
+
 import {globals} from './globals';
 import {Router} from './router';
 
@@ -418,22 +418,6 @@ export function showNoDeviceSelected(): void {
         'span',
         `If you want to connect to an ADB device,
            please select it from the list.`,
-      ),
-      m('br'),
-    ),
-  });
-}
-
-export function showExtensionNotInstalled(): void {
-  showModal({
-    title: 'Perfetto Chrome extension not installed',
-    content: m(
-      'div',
-      m(
-        '.note',
-        `To trace Chrome from the Perfetto UI, you need to install our `,
-        m('a', {href: EXTENSION_URL, target: '_blank'}, 'Chrome extension'),
-        ' and then reload this page.',
       ),
       m('br'),
     ),

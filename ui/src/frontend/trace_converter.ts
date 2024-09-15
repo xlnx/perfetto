@@ -14,7 +14,6 @@
 
 import {download} from '../base/clipboard';
 import {ErrorDetails} from '../base/logging';
-import {utf8Decode} from '../base/string_utils';
 import {time} from '../base/time';
 import {Actions} from '../common/actions';
 import {
@@ -24,14 +23,8 @@ import {
 
 import {maybeShowErrorDialog} from './error_dialog';
 import {globals} from './globals';
-import {openBufferWithLegacyTraceViewer} from './legacy_trace_viewer';
 
-type Args =
-  | UpdateStatusArgs
-  | UpdateJobStatusArgs
-  | DownloadFileArgs
-  | OpenTraceInLegacyArgs
-  | ErrorArgs;
+type Args =|UpdateStatusArgs|UpdateJobStatusArgs|DownloadFileArgs|ErrorArgs;
 
 interface UpdateStatusArgs {
   kind: 'updateStatus';
@@ -48,11 +41,6 @@ interface DownloadFileArgs {
   kind: 'downloadFile';
   buffer: Uint8Array;
   name: string;
-}
-
-interface OpenTraceInLegacyArgs {
-  kind: 'openTraceInLegacy';
-  buffer: Uint8Array;
 }
 
 interface ErrorArgs {
@@ -73,9 +61,6 @@ function handleOnMessage(msg: MessageEvent): void {
     globals.setConversionJobStatus(args.name, args.status);
   } else if (args.kind === 'downloadFile') {
     download(new File([new Blob([args.buffer])], args.name));
-  } else if (args.kind === 'openTraceInLegacy') {
-    const str = utf8Decode(args.buffer);
-    openBufferWithLegacyTraceViewer('trace.json', str, 0);
   } else if (args.kind === 'error') {
     maybeShowErrorDialog(args.error);
   } else {
@@ -102,14 +87,6 @@ export function convertTraceToSystraceAndDownload(trace: Blob) {
     kind: 'ConvertTraceAndDownload',
     trace,
     format: 'systrace',
-  });
-}
-
-export function convertToJson(trace: Blob, truncate?: 'start' | 'end') {
-  makeWorkerAndPost({
-    kind: 'ConvertTraceAndOpenInLegacy',
-    trace,
-    truncate,
   });
 }
 

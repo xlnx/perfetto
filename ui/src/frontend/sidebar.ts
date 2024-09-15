@@ -14,48 +14,26 @@
 
 import m from 'mithril';
 
+import {formatHotkey} from '../base/hotkeys';
 import {assertExists, assertTrue} from '../base/logging';
 import {isString} from '../base/object_utils';
 import {Actions} from '../common/actions';
-import {getCurrentChannel} from '../common/channels';
 import {TRACE_SUFFIX} from '../common/constants';
 import {ConversionJobStatus} from '../common/conversion_jobs';
-import {
-  disableMetatracingAndGetTrace,
-  enableMetatracing,
-  isMetatracingEnabled,
-} from '../common/metatracing';
+import {isMetatracingEnabled} from '../common/metatracing';
 import {EngineMode} from '../common/state';
 import {featureFlags} from '../core/feature_flags';
 import {raf} from '../core/raf_scheduler';
-import {SCM_REVISION, VERSION} from '../gen/perfetto_version';
-import {EngineBase} from '../trace_processor/engine';
+import {SidebarMenuItem} from '../public';
 import {showModal} from '../widgets/modal';
 
 import {Animation} from './animation';
-import {downloadData, downloadUrl} from './download_utils';
+import {downloadUrl} from './download_utils';
 import {globals} from './globals';
 import {toggleHelp} from './help_modal';
 import {Router} from './router';
 import {createTraceLink, isDownloadable, shareTrace} from './trace_attrs';
-import {
-  convertTraceToJsonAndDownload,
-  convertTraceToSystraceAndDownload,
-} from './trace_converter';
-import {openInOldUIWithSizeCheck} from './legacy_trace_viewer';
-import {formatHotkey} from '../base/hotkeys';
-import {SidebarMenuItem} from '../public';
-
-const GITILES_URL =
-  'https://android.googlesource.com/platform/external/perfetto';
-
-function getBugReportUrl(): string {
-  if (globals.isInternalUser) {
-    return 'https://goto.google.com/perfetto-ui-bug';
-  } else {
-    return 'https://github.com/google/perfetto/issues/new';
-  }
-}
+import {convertTraceToJsonAndDownload, convertTraceToSystraceAndDownload,} from './trace_converter';
 
 const HIRING_BANNER_FLAG = featureFlags.register({
   id: 'showHiringBanner',
@@ -154,7 +132,6 @@ function getSections(): Section[] {
       expanded: true,
       items: [
         ...insertSidebarMenuitems('navigation'),
-        {t: 'Record new trace', a: navigateRecord, i: 'fiber_smart_record'},
         {
           t: 'Widgets',
           a: navigateWidgets,
@@ -184,8 +161,8 @@ function getSections(): Section[] {
           i: 'share',
           internalUserOnly: true,
           isPending: () =>
-            globals.getConversionJobStatus('create_permalink') ===
-            ConversionJobStatus.InProgress,
+              globals.getConversionJobStatus('create_permalink') ===
+              ConversionJobStatus.InProgress,
         },
         {
           t: 'Download',
@@ -218,20 +195,11 @@ function getSections(): Section[] {
       hideIfNoTraceLoaded: true,
       items: [
         {
-          t: 'Switch to legacy UI',
-          a: openCurrentTraceWithOldUI,
-          i: 'filter_none',
-          isPending: () =>
-            globals.getConversionJobStatus('open_in_legacy') ===
-            ConversionJobStatus.InProgress,
-        },
-        {
           t: 'Convert to .json',
           a: convertTraceToJson,
           i: 'file_download',
-          isPending: () =>
-            globals.getConversionJobStatus('convert_json') ===
-            ConversionJobStatus.InProgress,
+          isPending: () => globals.getConversionJobStatus('convert_json') ===
+              ConversionJobStatus.InProgress,
           checkDownloadDisabled: true,
         },
 
@@ -241,18 +209,11 @@ function getSections(): Section[] {
           i: 'file_download',
           isVisible: () => globals.hasFtrace,
           isPending: () =>
-            globals.getConversionJobStatus('convert_systrace') ===
-            ConversionJobStatus.InProgress,
+              globals.getConversionJobStatus('convert_systrace') ===
+              ConversionJobStatus.InProgress,
           checkDownloadDisabled: true,
         },
       ],
-    },
-
-    {
-      title: 'Example Traces',
-      expanded: true,
-      summary: 'Open an example trace',
-      items: [...insertSidebarMenuitems('example_traces')],
     },
 
     {
@@ -263,23 +224,6 @@ function getSections(): Section[] {
         {t: 'Keyboard shortcuts', a: openHelp, i: 'help'},
         {t: 'Documentation', a: 'https://perfetto.dev/docs', i: 'find_in_page'},
         {t: 'Flags', a: navigateFlags, i: 'emoji_flags'},
-        {
-          t: 'Report a bug',
-          a: getBugReportUrl(),
-          i: 'bug_report',
-        },
-        {
-          t: 'Record metatrace',
-          a: recordMetatrace,
-          i: 'fiber_smart_record',
-          checkMetatracingDisabled: true,
-        },
-        {
-          t: 'Finalise metatrace',
-          a: finaliseMetatrace,
-          i: 'file_download',
-          checkMetatracingEnabled: true,
-        },
       ],
     },
   ];
@@ -329,20 +273,6 @@ export async function getCurrentTrace(): Promise<Blob> {
   }
 }
 
-function openCurrentTraceWithOldUI(e: Event) {
-  e.preventDefault();
-  assertTrue(isTraceLoaded());
-  globals.logging.logEvent('Trace Actions', 'Open current trace in legacy UI');
-  if (!isTraceLoaded()) return;
-  getCurrentTrace()
-    .then((file) => {
-      openInOldUIWithSizeCheck(file);
-    })
-    .catch((error) => {
-      throw new Error(`Failed to get current trace ${error}`);
-    });
-}
-
 function convertTraceToSystrace(e: Event) {
   e.preventDefault();
   assertTrue(isTraceLoaded());
@@ -373,11 +303,6 @@ function convertTraceToJson(e: Event) {
 
 export function isTraceLoaded(): boolean {
   return globals.getCurrentEngine() !== undefined;
-}
-
-function navigateRecord(e: Event) {
-  e.preventDefault();
-  Router.navigate('#!/record');
 }
 
 function navigateWidgets(e: Event) {
@@ -464,12 +389,6 @@ function downloadTrace(e: Event) {
   downloadUrl(fileName, url);
 }
 
-function getCurrentEngine(): EngineBase | undefined {
-  const engineId = globals.getCurrentEngine()?.id;
-  if (engineId === undefined) return undefined;
-  return globals.engines.get(engineId);
-}
-
 function highPrecisionTimersAvailable(): boolean {
   // High precision timers are available either when the page is cross-origin
   // isolated or when the trace processor is a standalone binary.
@@ -477,64 +396,6 @@ function highPrecisionTimersAvailable(): boolean {
     window.crossOriginIsolated ||
     globals.getCurrentEngine()?.mode === 'HTTP_RPC'
   );
-}
-
-function recordMetatrace(e: Event) {
-  e.preventDefault();
-  globals.logging.logEvent('Trace Actions', 'Record metatrace');
-
-  const engine = getCurrentEngine();
-  if (!engine) return;
-
-  if (!highPrecisionTimersAvailable()) {
-    const PROMPT = `High-precision timers are not available to WASM trace processor yet.
-
-Modern browsers restrict high-precision timers to cross-origin-isolated pages.
-As Perfetto UI needs to open traces via postMessage, it can't be cross-origin
-isolated until browsers ship support for
-'Cross-origin-opener-policy: restrict-properties'.
-
-Do you still want to record a metatrace?
-Note that events under timer precision (1ms) will dropped.
-Alternatively, connect to a trace_processor_shell --httpd instance.
-`;
-    showModal({
-      title: `Trace processor doesn't have high-precision timers`,
-      content: m('.modal-pre', PROMPT),
-      buttons: [
-        {
-          text: 'YES, record metatrace',
-          primary: true,
-          action: () => {
-            enableMetatracing();
-            engine.enableMetatrace();
-          },
-        },
-        {
-          text: 'NO, cancel',
-        },
-      ],
-    });
-  } else {
-    engine.enableMetatrace();
-  }
-}
-
-async function finaliseMetatrace(e: Event) {
-  e.preventDefault();
-  globals.logging.logEvent('Trace Actions', 'Finalise metatrace');
-
-  const jsEvents = disableMetatracingAndGetTrace();
-
-  const engine = getCurrentEngine();
-  if (!engine) return;
-
-  const result = await engine.stopAndGetMetatrace();
-  if (result.error.length !== 0) {
-    throw new Error(`Failed to read metatrace: ${result.error}`);
-  }
-
-  downloadData('metatrace', result.metatrace, jsEvents);
 }
 
 const EngineRPCWidget: m.Component = {
@@ -672,21 +533,9 @@ const ServiceWorkerWidget: m.Component = {
 const SidebarFooter: m.Component = {
   view() {
     return m(
-      '.sidebar-footer',
-      m(EngineRPCWidget),
-      m(ServiceWorkerWidget),
-      m(
-        '.version',
-        m(
-          'a',
-          {
-            href: `${GITILES_URL}/+/${SCM_REVISION}/ui`,
-            title: `Channel: ${getCurrentChannel()}`,
-            target: '_blank',
-          },
-          VERSION,
-        ),
-      ),
+        '.sidebar-footer',
+        m(EngineRPCWidget),
+        m(ServiceWorkerWidget),
     );
   },
 };
@@ -803,46 +652,49 @@ export class Sidebar implements m.ClassComponent {
       );
     }
     return m(
-      'nav.sidebar',
-      {
-        class: globals.state.sidebarVisible ? 'show-sidebar' : 'hide-sidebar',
-        // 150 here matches --sidebar-timing in the css.
-        // TODO(hjd): Should link to the CSS variable.
-        ontransitionstart: (e: TransitionEvent) => {
-          if (e.target !== e.currentTarget) return;
-          this._redrawWhileAnimating.start(150);
-        },
-        ontransitionend: (e: TransitionEvent) => {
-          if (e.target !== e.currentTarget) return;
-          this._redrawWhileAnimating.stop();
-        },
-      },
-      shouldShowHiringBanner() ? m(HiringBanner) : null,
-      m(
-        `header.${getCurrentChannel()}`,
-        m(`img[src=${globals.root}assets/brand.png].brand`),
-        m(
-          'button.sidebar-button',
-          {
-            onclick: () => {
-              globals.commandManager.runCommand(
-                'perfetto.CoreCommands#ToggleLeftSidebar',
-              );
-            },
+        'nav.sidebar',
+        {
+          class: globals.state.sidebarVisible ? 'show-sidebar' : 'hide-sidebar',
+          // 150 here matches --sidebar-timing in the css.
+          // TODO(hjd): Should link to the CSS variable.
+          ontransitionstart: (e: TransitionEvent) => {
+            if (e.target !== e.currentTarget)
+              return;
+            this._redrawWhileAnimating.start(150);
           },
-          m(
-            'i.material-icons',
-            {
-              title: globals.state.sidebarVisible ? 'Hide menu' : 'Show menu',
-            },
-            'menu',
-          ),
-        ),
-      ),
-      m(
-        '.sidebar-scroll',
-        m('.sidebar-scroll-container', ...vdomSections, m(SidebarFooter)),
-      ),
+          ontransitionend: (e: TransitionEvent) => {
+            if (e.target !== e.currentTarget)
+              return;
+            this._redrawWhileAnimating.stop();
+          },
+        },
+        shouldShowHiringBanner() ? m(HiringBanner) : null,
+        m(
+            `header.stable`,
+            m(`img[src=${globals.root}assets/brand.png].brand`),
+            m(
+                'button.sidebar-button',
+                {
+                  onclick: () => {
+                    globals.commandManager.runCommand(
+                        'perfetto.CoreCommands#ToggleLeftSidebar',
+                    );
+                  },
+                },
+                m(
+                    'i.material-icons',
+                    {
+                      title: globals.state.sidebarVisible ? 'Hide menu' :
+                                                            'Show menu',
+                    },
+                    'menu',
+                    ),
+                ),
+            ),
+        m(
+            '.sidebar-scroll',
+            m('.sidebar-scroll-container', ...vdomSections, m(SidebarFooter)),
+            ),
     );
   }
 }

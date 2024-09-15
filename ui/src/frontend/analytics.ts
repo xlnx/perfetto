@@ -13,7 +13,6 @@
 // limitations under the License.
 
 import {ErrorDetails} from '../base/logging';
-import {getCurrentChannel} from '../common/channels';
 import {VERSION} from '../gen/perfetto_version';
 
 import {globals} from './globals';
@@ -154,8 +153,6 @@ class AnalyticsImpl implements Analytics {
       page_title: PAGE_TITLE,
       perfetto_is_internal_user: globals.isInternalUser ? '1' : '0',
       perfetto_version: VERSION,
-      // Release channel (canary, stable, autopush)
-      perfetto_channel: getCurrentChannel(),
       // Referrer *if overridden* via the query string else empty string.
       perfetto_referrer_override: getReferrerOverride() ?? '',
     });

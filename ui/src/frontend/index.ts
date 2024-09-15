@@ -30,10 +30,12 @@ import {pluginManager} from '../common/plugins';
 import {State} from '../common/state';
 import {initController, runControllers} from '../controller';
 import {isGetCategoriesResponse} from '../controller/chrome_proxy_record_controller';
-import {RECORDING_V2_FLAG, featureFlags} from '../core/feature_flags';
+import {featureFlags} from '../core/feature_flags';
 import {initLiveReload} from '../core/live_reload';
 import {raf} from '../core/raf_scheduler';
+import {HttpRpcEngine} from '../trace_processor/http_rpc_engine';
 import {initWasm} from '../trace_processor/wasm_engine_proxy';
+import {showModal} from '../widgets/modal';
 import {setScheduleFullRedraw} from '../widgets/raf';
 
 import {App} from './app';
@@ -49,8 +51,6 @@ import {MetricsPage} from './metrics_page';
 import {PluginsPage} from './plugins_page';
 import {postMessageHandler} from './post_message_handler';
 import {QueryPage} from './query_page';
-import {RecordPage, updateAvailableAdbDevices} from './record_page';
-import {RecordPageV2} from './record_page_v2';
 import {Route, Router} from './router';
 import {CheckHttpRpcConnection} from './rpc_http_dialog';
 import {TraceInfoPage} from './trace_info_page';
@@ -58,8 +58,6 @@ import {maybeOpenTraceFromRoute} from './trace_url_handler';
 import {ViewerPage} from './viewer_page';
 import {VizPage} from './viz_page';
 import {WidgetsPage} from './widgets_page';
-import {HttpRpcEngine} from '../trace_processor/http_rpc_engine';
-import {showModal} from '../widgets/modal';
 
 const EXTENSION_ID = 'lfmkphfpdbjijhpomgecfikhfohaoine';
 
@@ -275,7 +273,6 @@ function onCssLoaded() {
   const router = new Router({
     '/': HomePage,
     '/viewer': ViewerPage,
-    '/record': RECORDING_V2_FLAG.get() ? RecordPageV2 : RecordPage,
     '/query': QueryPage,
     '/insights': InsightsPage,
     '/flags': FlagsPage,
@@ -298,20 +295,6 @@ function onCssLoaded() {
     !globals.testing
   ) {
     initLiveReload();
-  }
-
-  if (!RECORDING_V2_FLAG.get()) {
-    updateAvailableAdbDevices();
-    try {
-      navigator.usb.addEventListener('connect', () =>
-        updateAvailableAdbDevices(),
-      );
-      navigator.usb.addEventListener('disconnect', () =>
-        updateAvailableAdbDevices(),
-      );
-    } catch (e) {
-      console.error('WebUSB API not supported');
-    }
   }
 
   // Will update the chip on the sidebar footer that notifies that the RPC is

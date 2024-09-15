@@ -32,10 +32,7 @@ const selfWorker = self as {} as Worker;
 // blob works. We should reduce the number of copies.
 
 type Format = 'json' | 'systrace';
-type Args =
-  | ConvertTraceAndDownloadArgs
-  | ConvertTraceAndOpenInLegacyArgs
-  | ConvertTraceToPprofArgs;
+type Args =|ConvertTraceAndDownloadArgs|ConvertTraceToPprofArgs;
 
 function updateStatus(status: string) {
   selfWorker.postMessage({
@@ -61,13 +58,6 @@ function downloadFile(buffer: Uint8Array, name: string) {
     },
     [buffer.buffer],
   );
-}
-
-function openTraceInLegacy(buffer: Uint8Array) {
-  selfWorker.postMessage({
-    kind: 'openTraceInLegacy',
-    buffer,
-  });
 }
 
 function forwardError(error: ErrorDetails) {
@@ -149,46 +139,6 @@ async function ConvertTraceAndDownload(
   }
 }
 
-interface ConvertTraceAndOpenInLegacyArgs {
-  kind: 'ConvertTraceAndOpenInLegacy';
-  trace: Blob;
-  truncate?: 'start' | 'end';
-}
-
-function isConvertTraceAndOpenInLegacy(
-  msg: Args,
-): msg is ConvertTraceAndOpenInLegacyArgs {
-  if (msg.kind !== 'ConvertTraceAndOpenInLegacy') {
-    return false;
-  }
-  return true;
-}
-
-async function ConvertTraceAndOpenInLegacy(
-  trace: Blob,
-  truncate?: 'start' | 'end',
-) {
-  const jobName = 'open_in_legacy';
-  updateJobStatus(jobName, ConversionJobStatus.InProgress);
-  const outPath = '/trace.json';
-  const args: string[] = ['json'];
-  if (truncate !== undefined) {
-    args.push('--truncate', truncate);
-  }
-  args.push('/fs/trace.proto', outPath);
-  try {
-    const module = await runTraceconv(trace, args);
-    const fsNode = module.FS.lookupPath(outPath).node;
-    const data = fsNode.contents.buffer;
-    const size = fsNode.usedBytes;
-    const buffer = new Uint8Array(data, 0, size);
-    openTraceInLegacy(buffer);
-    module.FS.unlink(outPath);
-  } finally {
-    updateJobStatus(jobName, ConversionJobStatus.NotRunning);
-  }
-}
-
 interface ConvertTraceToPprofArgs {
   kind: 'ConvertTraceToPprof';
   trace: Blob;
@@ -243,8 +193,6 @@ selfWorker.onmessage = (msg: MessageEvent) => {
   const args = msg.data as Args;
   if (isConvertTraceAndDownload(args)) {
     ConvertTraceAndDownload(args.trace, args.format, args.truncate);
-  } else if (isConvertTraceAndOpenInLegacy(args)) {
-    ConvertTraceAndOpenInLegacy(args.trace, args.truncate);
   } else if (isConvertTraceToPprof(args)) {
     ConvertTraceToPprof(args.trace, args.pid, args.ts);
   } else {

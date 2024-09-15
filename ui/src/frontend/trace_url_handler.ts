@@ -18,9 +18,8 @@ import {Actions} from '../common/actions';
 import {tryGetTrace} from '../common/cache_manager';
 import {showModal} from '../widgets/modal';
 
-import {loadPermalink} from './permalink';
-import {loadAndroidBugToolInfo} from './android_bug_tool';
 import {globals} from './globals';
+import {loadPermalink} from './permalink';
 import {Route, Router} from './router';
 import {taskTracker} from './task_tracker';
 
@@ -45,20 +44,6 @@ export function maybeOpenTraceFromRoute(route: Route) {
     // This really works only for GCS because the Content Security Policy
     // forbids any other url.
     loadTraceFromUrl(url);
-    return;
-  }
-
-  if (route.args.openFromAndroidBugTool) {
-    // Handles interaction with the Android Bug Tool extension. See b/163421158.
-    openTraceFromAndroidBugTool();
-    return;
-  }
-
-  if (route.args.p && route.page === '/record') {
-    // Handles backwards compatibility for old URLs (linked from various docs),
-    // generated before we switched URL scheme. e.g., 'record?p=power' vs
-    // 'record/power'. See b/191255021#comment2.
-    Router.navigate(`#!/record/${route.args.p}`);
     return;
   }
 
@@ -241,27 +226,4 @@ function loadTraceFromUrl(url: string) {
   } else {
     globals.dispatch(Actions.openTraceFromUrl({url}));
   }
-}
-
-function openTraceFromAndroidBugTool() {
-  // TODO(hjd): Unify updateStatus and TaskTracker
-  globals.dispatch(
-    Actions.updateStatus({
-      msg: 'Loading trace from ABT extension',
-      timestamp: Date.now() / 1000,
-    }),
-  );
-  const loadInfo = loadAndroidBugToolInfo();
-  taskTracker.trackPromise(loadInfo, 'Loading trace from ABT extension');
-  loadInfo
-    .then((info) => {
-      globals.dispatch(
-        Actions.openTraceFromFile({
-          file: info.file,
-        }),
-      );
-    })
-    .catch((e) => {
-      console.error(e);
-    });
 }

@@ -135,12 +135,7 @@ export interface MetricVisualisation {
 
 export interface SidebarMenuItem {
   readonly commandId: string;
-  readonly group:
-    | 'navigation'
-    | 'current_trace'
-    | 'convert_trace'
-    | 'example_traces'
-    | 'support';
+  readonly group:|'navigation'|'current_trace'|'convert_trace'|'support';
   when?(): boolean;
   readonly icon: string;
   readonly priority?: number;
